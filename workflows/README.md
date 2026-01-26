@@ -108,6 +108,26 @@ This workflow does the following:
 If your lesson contains rendered content using RMarkdown and/or any associated R package dependencies, you will need to generate and apply the renv cache.
 Please read the [Caching](#caching) section below.
 
+#### User Settings
+
+Input level variables are documented in the `carpentries/actions` repository READMEs for each composite action.
+
+Repository-level variables for this workflow are:
+- WORKBENCH_TAG
+  - The workbench-docker release version to use for a given build
+  - This can be set to a specific version number to force all builds to use a given container version
+  - Default is unset or `latest`
+- BUILD_RESET
+  - Force a reset of previously build markdown files
+  - Setting this variable value to `true` will force sandpaper to delete any previously build markdown files
+  - Default is unset or `false`
+- AUTO_MERGE_WORKBENCH_VERSION_UPDATE
+  - Control merge behaviour of the workbench-docker version update PR
+  - When a new workbench Docker image version is detected, usually after a sandpaper, varnish, or pegboard update, its version number will be incremented
+  - If a newer version is available, a PR will be auto-generated that updates the `.github/workbench-docker-version.txt` file, and this PR will be auto-merged
+  - To not auto-merge this PR and to choose when to update the Docker version used, set this to `false`.
+  - Default is unset or `true`
+
 #### Caching
 
 > [!NOTE]
@@ -165,28 +185,23 @@ If you have no caches listed, make sure to run the "02 Maintain: Check for Updat
 > You can see available caches by going to the Actions tab, and clicking Caches on the left hand side.
 
 
-## Updates
+## Package Caches for RMarkdown Lessons
 
 ### Setup Information
 
 These workflows run on a mix of schedules, automatic triggers, and at the maintainer's request.
-Because they create pull requests that update workflows/require the downstream actions to run,
-they need a special repository/organization secret token called 
-`SANDPAPER_WORKFLOW` and it must have the `public_repo` and `workflow` scope. 
+Because they create pull requests that update workflows/require the downstream actions to run, they need a special repository/organization secret token called `SANDPAPER_WORKFLOW` and it must have the `public_repo` and `workflow` scope. 
 
-This can be an individual user token, OR it can be a trusted bot account. If you
-have a repository in one of the official Carpentries organisations, then you do not
-need to worry about this token being present because the Carpentries Core Team
-will take care of supplying this token.
+This can be an individual user token, OR it can be a trusted bot account.
+If you have a repository in one of the official Carpentries organisations, then you do not need to worry about this token being present because the Carpentries Core Team will take care of supplying this token.
 
 If you want to use your personal account: you can go to 
 <https://github.com/settings/tokens/new?scopes=public_repo,workflow&description=Sandpaper%20Token>
-to create a token. Once you have created your token, you should copy it to your
-clipboard and then go to your repository's settings > secrets > actions and
-create or edit the `SANDPAPER_WORKFLOW` secret, pasting in the generated token.
+to create a token.
+Once you have created your token, you should copy it to your clipboard and then go to your repository's Settings > Secrets > Actions and create or edit the `SANDPAPER_WORKFLOW` secret, pasting in the generated token.
 
-If you do not specify your token correctly, most of the actions will work
-EXCEPT for the "04 Maintain: Update Workflow Files" which requires it.
+> [!NOTE]
+> If you do not specify your token correctly, _most of the actions will still work_ *EXCEPT* for the "04 Maintain: Update Workflow Files" which requires it.
 
 ### "02 Maintain: Check for Updated Packages" (update-cache.yaml)
 
@@ -227,6 +242,9 @@ You would only ever need to run this workflow manually:
 - if your cache gets removed by GitHub due to age or non-use
 - if your cache file contains packages that cannot be used by a Workbench Docker container's newer R version
 
+
+## Workflow Updates
+
 ### "04 Maintain: Update Workflow Files" (update-workflows.yaml)
 
 The {sandpaper} repository was designed to do as much as possible to separate the tools from the content.
@@ -246,6 +264,7 @@ After the files are updated, and if there are any changes, they are pushed to a 
 Maintainers are encouraged to review the changes and accept the pull request if the outputs are okay.
 
 This update is run weekly or on demand.
+
 
 ## Pull Request and Review Management
 
