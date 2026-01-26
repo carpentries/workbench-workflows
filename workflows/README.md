@@ -1,6 +1,6 @@
 # Carpentries Workflows
 
-This directory contains workflows to be used for Lessons using the Carpentries Workbench lesson infrastructure. 
+This repository contains workflows to be used for Lessons using the Carpentries Workbench lesson infrastructure. 
 
 The three `docker-` workflows build lessons and maintain packages.
 The workflows run using the [workbench-docker](https://github.com/carpentries/workbench-docker) container. 
@@ -14,6 +14,7 @@ The rest of the `pr-` workflows handle pull request management via base GitHub A
 
 For Carpentries Core Curriculum lessons across our lesson programmes, maintenance of these workflows should be minimal.
 For your own lesson repositories, it is important to understand the different workflows and what they do.
+
 
 ## Managing Updates
 
@@ -54,12 +55,26 @@ This will be the extent of requirements for non-renv lessons.
 #### Lessons that use Rmd and {renv}
 
 For renv-enabled lessons:
-- Cancel the "01 Maintain: Build and Deploy Site" run that automatically started following the push to main
+- Cancel any "01 Maintain: Build and Deploy Site" currently running
 - Run the "02 Maintain: Check for Updated Packages"
 - Run the "03 Maintain: Apply Package Cache"
 - Run the "01 Maintain: Build and Deploy Site"
 
 ### Updating using GitHub
+
+#### Official lessons
+
+"Official" lessons are those in the lesson program repositories, Incubator, or Lab.
+They need no extra setup as this is all managed for you as part of the Carpentries GitHub organisations.
+
+To update the workflows, either:
+- wait for the scheduled run of the "04 Maintain: Update Workflow Files" at approximately midnight every Tuesday
+- go to the Actions tab on GitHub, click "04 Maintain: Update Workflow Files" on the left, then "Run Workflow" on the right
+
+Once complete, this will raise a PR with any changes to the workflows that are needed.
+If you are happy with the changes made, you can merge the PR into your lesson repository.
+
+#### Your own lessons
 
 This presumes you:
   - already have a lesson repository available on GitHub
@@ -73,6 +88,7 @@ Once set up, run the "04 Maintain: Update Workflow Files" (`update-workflows.yam
 
 This will raise a PR with any changes to the workflows that are needed.
 If you are happy with the changes made, you can merge the PR into your lesson repository.
+
 
 ## Lesson Builds and Deployment
 
@@ -101,7 +117,7 @@ Please read the [Caching](#caching) section below.
 
 In summary, generating a reusable package cache is achieved by running the "02 Maintain: Check for Updated Packages" workflow, and then the "03 Maintain: Apply Package Cache" workflow.
 
-These workflows are separated to ensure that once you have a successful build with a working renv cache, this cache is stored within GitHub's infrastructure, and will be reused by the Workbench Docker container.
+These workflows are separated to ensure that once you have a successful build with a working renv cache, this cache is stored and will be reused by the Workbench Docker container.
 This means that lesson builds will be faster once an renv cache is created and reused by the Docker container.
 
 Another major bonus of this setup is that you can keep using this cache indefinitely to build your lesson.
@@ -123,17 +139,13 @@ There are times when you may want to go back to a previous renv package cache fi
   - if you run "02 Maintain: Check for Updated Packages" and "03 Maintain: Apply Package Cache" and the cache generation fails for some reason
   - if there is a new R package that produces incorrect or broken lesson output
 
-To choose a previous cache file version for your builds, go to the Actions tab, and click Caches in the left hand pane.
-
-Cache files should have the following name format:
+Cache files will have the following name format, where IMAGE is the workbench-docker image version, and HASHSUM is the `renv.lock` lockfile MD5 hash:
 
 ```
-  OS                                 HASHSUM
-[ | ]       [                           |                                  ]
-Linux--renv-2e499eb706112971b2cffceb49b55a6efe49f3ed75cd6579b10ff224489daca4
+IMAGE                                HASHSUM
+[ |  ]      [                           |                                  ]
+v0.2.4_renv-2e499eb706112971b2cffceb49b55a6efe49f3ed75cd6579b10ff224489daca4
 ```
-
-Once you have 2 or more cache files, you can choose which one you want to use.
 
 Copy the hashsum part of the desired cache file you want to use, e.g. `2e499eb706112971b2cffceb49b55a6efe49f3ed75cd6579b10ff224489daca4`.
 
@@ -144,6 +156,14 @@ Then either:
     - Go to ...
 
 If you have no caches listed, make sure to run the "02 Maintain: Check for Updated Packages" and "03 Maintain: Apply Package Cache" to create a new renv cache file.
+
+> [!NOTE]
+> If you are maintaining an official lesson, caches are saved in an AWS S3 bucket owned by the Carpentries.
+> Once a successful cache has been saved, these will be listed in the outputs of the "01 Maintain: Build and Deploy Site" workflow.
+> 
+> If you are developing a lesson in your own repository, caches are saved on GitHub.
+> You can see available caches by going to the Actions tab, and clicking Caches on the left hand side.
+
 
 ## Updates
 
@@ -165,117 +185,104 @@ to create a token. Once you have created your token, you should copy it to your
 clipboard and then go to your repository's settings > secrets > actions and
 create or edit the `SANDPAPER_WORKFLOW` secret, pasting in the generated token.
 
-If you do not specify your token correctly, the runs will not fail and they will
-give you instructions to provide the token for your repository.
+If you do not specify your token correctly, most of the actions will work
+EXCEPT for the "04 Maintain: Update Workflow Files" which requires it.
 
 ### "02 Maintain: Check for Updated Packages" (update-cache.yaml)
 
-For lessons that have generated content, we use {renv} to ensure that the output
-is stable. This is controlled by a single lockfile which documents the packages
-needed for the lesson and the version numbers. This workflow is skipped in 
-lessons that do not have generated content.
+For lessons that have generated content, we use {renv} to ensure that the output is stable.
+This is controlled by a single lockfile which documents the packages needed for the lesson and the version numbers.
+This workflow is skipped in lessons that do not have generated content.
 
-Packages are frequently updated, fixing bugs or introducing new features. It's a
-good idea to make sure these packages can be both: updated periodically, or; or left 
-static to ensure consistent lesson builds.
+Packages are frequently updated, fixing bugs or introducing new features.
+It's a good idea to make sure these packages can be both: updated periodically, or; or left static to ensure consistent lesson builds.
 
-The update cache workflow will do this by:
+The "02 Maintain: Check for Updated Packages" workflow will do this by:
 - checking repositories for updates
 - updating the renv lockfile
 - summarising the updated packages and their versions in a branch called `updates/packages`
 - creating a pull request with _only the renv lockfile changed_
 
-From here, the markdown documents will be rebuilt and you can inspect what has
-changed based on how the packages have updated.
+From here, the markdown documents will be rebuilt and you can inspect what has changed based on how the packages have updated.
 
 If all steps pass in this workflow, you can safely merge the PR that is raised.
-Once the PR is merged, the "03 Maintain: Apply Package Cache" workflow will run
-automatically.
+Once the PR is merged, the "03 Maintain: Apply Package Cache" workflow will run automatically to save the cache for future use.
 
 ### 03 Maintain: Apply Package Cache (docker_apply_cache.yaml)
 
-This workflow takes the updated lockfile produced in "02 Maintain: Check for Updated Packages"
-and uses it to produce a cached file stored within GitHub's infrastructure.
+This workflow takes the updated lockfile produced in "02 Maintain: Check for Updated Packages" and uses it to produce a cache file of the used packages.
+This cached file can then be reused repeatedly by the "01 Maintain: Build and Deploy Site" workflow, improving build times and allowing consistent package versioning.
 
-This cached file can then be reused repeatedly by the "01 Maintain: Build and Deploy Site"
-workflow.
+This workflow is run automatically when the PR generated by "02 Maintain: Check for Updated Packages" is closed and merged.
 
-This workflow is run automatically when the PR generated by "02 Maintain: Check for Updated Packages"
-is closed and merged.
+> [!NOTE]
+> If you are maintaining an official lesson, caches are saved in an AWS S3 bucket owned by the Carpentries.
+> Once a successful cache has been saved, these will be listed in the outputs of the "01 Maintain: Build and Deploy Site" workflow.
+> 
+> If you are developing a lesson in your own repository, caches are saved on GitHub.
+> You can see available caches by going to the Actions tab, and clicking Caches on the left hand side.
 
 You would only ever need to run this workflow manually:
+- you have manually updated your lockfile and don't need to explicitly check for package updates using the workflow
 - if your cache gets removed by GitHub due to age or non-use
 - if your cache file contains packages that cannot be used by a Workbench Docker container's newer R version
 
 ### "04 Maintain: Update Workflow Files" (update-workflows.yaml)
 
-The {sandpaper} repository was designed to do as much as possible to separate 
-the tools from the content. For local builds, this is absolutely true as you 
-can develop and build lessons without any GitHub workflows. When it comes to 
-workflow files on GitHub itself for managed builds online, the workflows must 
-live inside the lesson repository.
+The {sandpaper} repository was designed to do as much as possible to separate the tools from the content.
+For local builds, this is absolutely true as you can develop and build lessons without any GitHub workflows.
+When it comes to workflow files on GitHub itself for managed builds online, the workflows must live inside the lesson repository.
 
-This workflow ensures that the workflow files are up-to-date. It downloads the
-`update-workflows.sh` script from GitHub and runs it. The script will do the 
-following:
+This workflow ensures that the workflow files are up-to-date.
+It downloads the `update-workflows.sh` script from GitHub and runs it.
+The current version of the workflows will be stored in the `.github/workflows/workflows-version.txt` file.
 
-1. check the recorded version of sandpaper against the current version on GitHub
+The script will do the following:
+
+1. check the recorded version of the workbench-workflows against the current version on GitHub
 2. update the files if there is a difference in versions
 
-After the files are updated, and if there are any changes, they are pushed to a
-branch called `update/workflows` and a pull request is created. Maintainers are
-encouraged to review the changes and accept the pull request if the outputs
-are okay.
+After the files are updated, and if there are any changes, they are pushed to a branch called `update/workflows` and a pull request is created.
+Maintainers are encouraged to review the changes and accept the pull request if the outputs are okay.
 
 This update is run weekly or on demand.
 
 ## Pull Request and Review Management
 
-Because our lessons execute code, pull requests are a secruity risk for any
-lesson and thus have security measures associted with them. **Do not merge any
-pull requests that do not pass checks and do not have bots commented on them.**
+Because our lessons execute code, pull requests are a security risk for any lesson and thus have security measures associted with them.
+**Do not merge any pull requests that do not pass checks and do not have bots commented on them.**
 
-This series of workflows all go together and are described in the following 
-diagram and the below sections:
+This series of workflows all go together and are described in the following diagram and the below sections:
 
 ![Graph representation of a pull request](https://carpentries.github.io/sandpaper/articles/img/pr-flow.dot.svg)
 
 ### Pre Flight Pull Request Validation (pr-preflight.yaml)
 
-This workflow runs every time a pull request is created and its purpose is to
-validate that the pull request is okay to run. This means the following things:
+This workflow runs every time a pull request is created and its purpose is to validate that the pull request is okay to run.
+This means the following things:
 
 1. The pull request does not contain modified workflow files
-2. If the pull request contains modified workflow files, it does not contain 
-   modified content files (such as a situation where @carpentries-bot will
-   make an automated pull request)
-3. The pull request does not contain an invalid commit hash (e.g. from a fork
-   that was made before a lesson was transitioned from styles to use the
-   workbench).
+2. If the pull request contains modified workflow files, it does not contain modified content files
+   (such as a situation where @carpentries-bot will make an automated pull request)
+3. The pull request does not contain an invalid commit hash
+   (e.g. from a fork that was made before a lesson was transitioned from styles to use the Workbench).
 
-Once the checks are finished, a comment is issued to the pull request, which 
-will allow maintainers to determine if it is safe to run the 
-"Receive Pull Request" workflow from new contributors.
+Once the checks are finished, a comment is issued to the pull request, which will allow maintainers to determine if it is safe to run the "Receive Pull Request" workflow from new contributors.
 
 ### Receive Pull Request (docker_pr_receive.yaml)
 
-**Note of caution:** This workflow runs arbitrary code by anyone who creates a
-pull request. GitHub has safeguarded the token used in this workflow to have no
-privileges in the repository, but we have taken precautions to protect against
-spoofing.
+**Note of caution:** This workflow runs arbitrary code by anyone who creates a pull request.
+GitHub has safeguarded the token used in this workflow to have no privileges in the repository, but we have taken precautions to protect against spoofing.
 
-This workflow is triggered with every push to a pull request. If this workflow
-is already running and a new push is sent to the pull request, the workflow
-running from the previous push will be cancelled and a new workflow run will be
-started.
+This workflow is triggered with every push to a pull request.
+If this workflow is already running and a new push is sent to the pull request, the workflow running from the previous push will be cancelled and a new workflow run will be started.
 
-The first step of this workflow is to check if it is valid (e.g. that no
-workflow files have been modified). If there are workflow files that have been
-modified, a comment is made that indicates that the workflow is not run. If 
-both a workflow file and lesson content is modified, an error will occurr.
+The first step of this workflow is to check if it is valid (e.g. that no workflow files have been modified):
+- If there are workflow files that have been modified, a comment is made that indicates that the workflow will not continue.
+- If both a workflow file and lesson content is modified, an error will occur and the workflow will not continue.
 
-The second step (if valid) is to build the generated content from the pull
-request. This builds the content and uploads three artifacts:
+The second step (if valid) is to build the generated content from the pull request.
+This builds the content and uploads three artifacts:
 
 1. The pull request number (pr)
 2. A summary of changes after the rendering process (diff)
@@ -288,25 +295,21 @@ The artifacts produced are used by the "Comment on Pull Request" workflow.
 This workflow is triggered if the `docker_pr_receive.yaml` workflow is successful.
 The steps in this workflow are:
 
-1. Test if the workflow is valid and comment the validity of the workflow to the
-   pull request.
-2. If it is valid: create an orphan branch with two commits: the current state
-   of the repository and the proposed changes.
+1. Test if the workflow is valid and comment the validity of the workflow to the pull request.
+2. If it is valid: create an orphan branch with two commits: the current state of the repository and the proposed changes.
 3. If it is valid: update the pull request comment with the summary of changes
 
-Importantly: if the pull request is invalid, the branch is not created so any
-malicious code is not published.
+Importantly: if the pull request is invalid, the branch is not created so any malicious code is not published.
 
-From here, the maintainer can request changes from the author and eventually 
-either merge or reject the PR. When this happens, if the PR was valid, the 
-preview branch needs to be deleted. 
+From here, the maintainer can request changes from the author and eventually either merge or reject the PR.
+When this happens, if the PR was valid, the preview branch needs to be deleted. 
 
 ### Send Close PR Signal (pr-close-signal.yaml)
 
-Triggered any time a pull request is closed. This emits an artifact that is the
-pull request number for the next action
+Triggered any time a pull request is closed.
+This emits an artifact that is the pull request number for the next action.
 
 ### Remove Pull Request Branch (pr-post-remove-branch.yaml)
 
-Tiggered by `pr-close-signal.yaml`. This removes the temporary branch associated with
-the pull request (if it was created).
+Tiggered by `pr-close-signal.yaml`.
+This removes the temporary branch associated with the pull request (if it was created).
