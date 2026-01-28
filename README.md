@@ -20,10 +20,12 @@ More information about workflow specific options is in the [workflow documentati
 ## Setup Information
 
 These workflows run on a mix of schedules, automatic triggers, and at the maintainer's request.
-Because they create pull requests that update workflows/require the downstream actions to run, they need a special repository/organization secret token called `SANDPAPER_WORKFLOW` and it must have the `public_repo` and `workflow` scope. 
+Because they create pull requests that update workflows/require the downstream actions to run, they need a repository/organization secret token.
 
+For "official" lessons which are those in the lesson program repositories, Incubator, or Lab, you don't need to manage any tokens as this is done for you.
+
+If you are using lessons in your own repository, you need to create a token called `SANDPAPER_WORKFLOW` and it must have the `public_repo` and `workflow` scope.
 This can be an individual user token, OR it can be a trusted bot account.
-If you have a repository in one of the official Carpentries organisations, then you do not need to worry about this token being present because the Carpentries Core Team will take care of supplying this token.
 
 If you want to use your personal account: you can go to 
 <https://github.com/settings/tokens/new?scopes=public_repo,workflow&description=Sandpaper%20Token>
@@ -52,7 +54,7 @@ This workflow does the following:
 If your lesson contains rendered content using RMarkdown and/or any associated R package dependencies, you will need to generate and apply the renv cache.
 Please read the [Caching](#caching) section.
 
-### "02 Maintain: Check for Updated Packages" (update-cache.yaml)
+### 02 Maintain: Check for Updated Packages (update-cache.yaml)
 
 For lessons that have generated content, we use {renv} to ensure that the output is stable.
 This is controlled by a single lockfile which documents the packages needed for the lesson and the version numbers.
@@ -91,7 +93,7 @@ You would only ever need to run this workflow manually:
 - if your cache gets removed by GitHub due to age or non-use
 - if your cache file contains packages that cannot be used by a Workbench Docker container's newer R version
 
-### "04 Maintain: Update Workflow Files" (update-workflows.yaml)
+### 04 Maintain: Update Workflow Files (update-workflows.yaml)
 
 The {sandpaper} repository was designed to do as much as possible to separate the tools from the content.
 For local builds, this is absolutely true as you can develop and build lessons without any GitHub workflows.
