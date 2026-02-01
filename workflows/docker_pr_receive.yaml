@@ -19,7 +19,6 @@ permissions:
   pull-requests: write
 
 jobs:
-
   preflight:
     name: "Preflight: md-outputs exists?"
     runs-on: ubuntu-latest
