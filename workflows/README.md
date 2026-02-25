@@ -153,6 +153,10 @@ Repository-level variables for this workflow are:
   - If a newer version is available, a PR will be auto-generated that updates the `.github/workbench-docker-version.txt` file, and this PR will be auto-merged
   - To not auto-merge this PR and to choose when to update the Docker version used, set this to `false`.
   - Default is unset or `true`
+- LANG_CODE
+  - Two-letter language code that triggers the use of Joel Nitta's {dovetail} package for lesson translation
+  - This is used in the internationalisation repos of the main Carpentry lesson programs
+  - Default is unset or `''`
 
 ### 02 Maintain: Check for Updated Packages (update-cache.yaml)
 
