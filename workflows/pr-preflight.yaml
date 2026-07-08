@@ -37,3 +37,4 @@ jobs:
         with:
           pr: ${{ github.event.number }}
           body: ${{ steps.check-pr.outputs.MSG }}
+          warn: ${{ steps.check-pr.outputs.WARN }}
