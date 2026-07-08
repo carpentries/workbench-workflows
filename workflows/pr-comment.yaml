@@ -19,6 +19,7 @@ jobs:
       payload: ${{ steps.check-pr.outputs.payload }}
       number: ${{ steps.get-pr.outputs.NUM }}
       msg: ${{ steps.check-pr.outputs.MSG }}
+      warn: ${{ steps.check-pr.outputs.WARN }}
     steps:
       - name: "Download PR artifact"
         id: dl
@@ -96,6 +97,7 @@ jobs:
         with:
           pr: ${{ steps.get-pr.outputs.NUM }}
           body: ${{ steps.check-pr.outputs.MSG }}
+          warn: ${{ steps.check-pr.outputs.WARN }}
 
   # Create an orphan branch on this repository with two commits
   #  - the current HEAD of the md-outputs branch
@@ -174,6 +176,7 @@ jobs:
         with:
           pr: ${{ env.NR }}
           path: ${{ github.workspace }}/diff.md
+          warn: ${{ needs.test-pr.outputs.warn }}
 
   # Comment if the PR is open and matches the SHA, but the workflow files have
   # changed
@@ -187,6 +190,7 @@ jobs:
     env:
       NR: ${{ needs.test-pr.outputs.number }}
       body: ${{ needs.test-pr.outputs.msg }}
+      warn: ${{ needs.test-pr.outputs.warn }}
     permissions:
       pull-requests: write
     steps:
@@ -214,3 +218,4 @@ jobs:
         with:
           pr: ${{ env.NR }}
           body: ${{ env.body }}
+          warn: ${{ env.warn }}
