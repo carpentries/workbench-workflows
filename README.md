@@ -66,7 +66,7 @@ It's a good idea to make sure these packages can be both: updated periodically, 
 The "02 Maintain: Check for Updated Packages" workflow will do this by:
 - checking repositories for updates
 - updating the renv lockfile
-- summarising the updated packages and their versions in a branch called `updates/packages`
+- summarising the updated packages and their versions in a branch called `update/packages`
 - creating a pull request with _only the renv lockfile changed_
 
 From here, the markdown documents will be rebuilt and you can inspect what has changed based on how the packages have updated.

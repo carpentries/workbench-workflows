@@ -12,6 +12,8 @@ on:
       - closed
     branches:
       - main
+  schedule:
+    - cron: '0 0 * * 3' # every Wednesday at midnight UTC
 
 # queue cache runs
 concurrency:
