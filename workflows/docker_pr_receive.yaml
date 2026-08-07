@@ -107,6 +107,7 @@ jobs:
     outputs:
       renv-needed: ${{ steps.renv-check.outputs.renv-needed }}
       renv-cache-hashsum: ${{ steps.renv-check.outputs.renv-cache-hashsum }}
+      dependency-image-ref: ${{ steps.resolve-image.outputs.dependency-image-ref }}
     steps:
       - name: "Checkout Lesson"
         uses: actions/checkout@v6
@@ -117,6 +118,46 @@ jobs:
         with:
           CACHE_VERSION: ${{ inputs.CACHE_VERSION || '' }}
           skip-cache-check: true
+
+      - name: "Get Container Version Used"
+        id: wb-vers
+        if: steps.renv-check.outputs.renv-needed == 'true'
+        uses: carpentries/actions/container-version@main
+        with:
+          WORKBENCH_TAG: ${{ vars.WORKBENCH_TAG }}
+          renv-needed: ${{ steps.renv-check.outputs.renv-needed }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: "Resolve dependency image"
+        id: resolve-image
+        shell: bash
+        env:
+          RENV_NEEDED: ${{ steps.renv-check.outputs.renv-needed }}
+          WORKBENCH_TAG: ${{ vars.WORKBENCH_TAG || 'latest' }}
+          IMAGE_OWNER: ${{ github.repository_owner }}
+          IMAGE_NAME: ${{ github.event.repository.name }}
+          WB_VERSION: ${{ steps.wb-vers.outputs.container-version }}
+          RENV_HASH: ${{ steps.renv-check.outputs.renv-cache-hashsum }}
+        run: |
+          set -euo pipefail
+
+          base_image="ghcr.io/carpentries/workbench-docker:${WORKBENCH_TAG}"
+
+          if [[ "$RENV_NEEDED" != "true" ]]; then
+            echo "dependency-image-ref=$base_image" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          exact_image="ghcr.io/${IMAGE_OWNER}/${IMAGE_NAME}-deps:${WB_VERSION}_renv-${RENV_HASH}"
+          latest_image="ghcr.io/${IMAGE_OWNER}/${IMAGE_NAME}-deps:latest"
+
+          if docker manifest inspect "$exact_image" >/dev/null 2>&1; then
+            echo "dependency-image-ref=$exact_image" >> "$GITHUB_OUTPUT"
+          elif docker manifest inspect "$latest_image" >/dev/null 2>&1; then
+            echo "dependency-image-ref=$latest_image" >> "$GITHUB_OUTPUT"
+          else
+            echo "dependency-image-ref=$base_image" >> "$GITHUB_OUTPUT"
+          fi
 
   build-md-source:
     name: "Build markdown source files if valid"
@@ -131,14 +172,10 @@ jobs:
       GHWMD: ${{ github.workspace }}/site/built
       PR_BRANCH: ${{ needs.test-pr.outputs.pr_branch }}
       PR_NUMBER: ${{ needs.test-pr.outputs.pr_number }}
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     permissions:
-      checks: write
-      contents: write
-      pages: write
-      id-token: write
+      contents: read
     container:
-      image: ghcr.io/carpentries/workbench-docker:${{ vars.WORKBENCH_TAG || 'latest' }}
+      image: ${{ needs.check-renv.outputs.dependency-image-ref }}
       env:
         WORKBENCH_PROFILE: "ci"
         GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
@@ -176,64 +213,6 @@ jobs:
       - name: Setup Lesson Dependencies
         run: |
           Rscript /home/rstudio/.workbench/setup_lesson_deps.R
-        shell: bash
-
-      - name: Get Container Version Used
-        id: wb-vers
-        if: needs.check-renv.outputs.renv-needed == 'true'
-        uses: carpentries/actions/container-version@main
-        with:
-          WORKBENCH_TAG: ${{ vars.WORKBENCH_TAG }}
-          renv-needed: ${{ needs.check-renv.outputs.renv-needed }}
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: "Validate Current Org and Workflow"
-        id: validate-org-workflow
-        if: needs.check-renv.outputs.renv-needed == 'true'
-        uses: carpentries/actions/validate-org-workflow@main
-        with:
-          repo: ${{ github.repository }}
-          workflow: ${{ github.workflow }}
-
-      - name: Configure AWS credentials via OIDC
-        id: aws-creds
-        env:
-          role-to-assume: ${{ secrets.AWS_GH_OIDC_ARN }}
-          aws-region: ${{ secrets.AWS_GH_OIDC_REGION }}
-        if: |
-          steps.validate-org-workflow.outputs.is_valid == 'true' &&
-          needs.check-renv.outputs.renv-needed == 'true' &&
-          env.role-to-assume != '' &&
-          env.aws-region != ''
-        uses: aws-actions/configure-aws-credentials@v6
-        with:
-          role-to-assume: ${{ env.role-to-assume }}
-          aws-region: ${{ env.aws-region }}
-          output-credentials: true
-
-      - name: Get cache object from S3
-        id: s3-cache
-        uses: tespkg/actions-cache/restore@v1.10.0
-        if: needs.check-renv.outputs.renv-needed == 'true'
-        with:
-          # insecure: false # optional, use http instead of https. default false
-          accessKey: ${{ steps.aws-creds.outputs.aws-access-key-id }}
-          secretKey: ${{ steps.aws-creds.outputs.aws-secret-access-key }}
-          sessionToken: ${{ steps.aws-creds.outputs.aws-session-token }}
-          bucket: workbench-docker-caches
-          path: |
-            /home/rstudio/lesson/renv
-            /usr/local/lib/R/site-library
-          key: ${{ github.repository }}/${{ steps.wb-vers.outputs.container-version }}_renv-${{ needs.check-renv.outputs.renv-cache-hashsum }}
-          restore-keys:
-            ${{ github.repository }}/${{ steps.wb-vers.outputs.container-version }}_renv-
-
-      - name: "Fortify renv Cache"
-        if: |
-          needs.check-renv.outputs.renv-needed == 'true' &&
-          steps.s3-cache.outputs.cache-hit != 'true'
-        run: |
-          Rscript /home/rstudio/.workbench/fortify_renv_cache.R
         shell: bash
 
       - name: "Validate and Build Markdown"

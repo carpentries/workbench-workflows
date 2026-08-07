@@ -48,6 +48,7 @@ jobs:
       do-build: ${{ steps.build-check.outputs.do-build }}
       renv-needed: ${{ steps.build-check.outputs.renv-needed }}
       renv-cache-hashsum: ${{ steps.build-check.outputs.renv-cache-hashsum }}
+      dependency-image-ref: ${{ steps.resolve-image.outputs.dependency-image-ref }}
       workbench-container-file-exists: ${{ steps.wb-vers.outputs.workbench-container-file-exists }}
       wb-vers: ${{ steps.wb-vers.outputs.container-version }}
       last-wb-vers: ${{ steps.wb-vers.outputs.last-container-version }}
@@ -72,6 +73,38 @@ jobs:
           renv-needed: ${{ steps.build-check.outputs.renv-needed }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: "Resolve dependency image"
+        id: resolve-image
+        if: steps.build-check.outputs.do-build == 'true'
+        shell: bash
+        env:
+          RENV_NEEDED: ${{ steps.build-check.outputs.renv-needed }}
+          WORKBENCH_TAG: ${{ vars.WORKBENCH_TAG || 'latest' }}
+          IMAGE_OWNER: ${{ github.repository_owner }}
+          IMAGE_NAME: ${{ github.event.repository.name }}
+          WB_VERSION: ${{ steps.wb-vers.outputs.container-version }}
+          RENV_HASH: ${{ steps.build-check.outputs.renv-cache-hashsum }}
+        run: |
+          set -euo pipefail
+
+          base_image="ghcr.io/carpentries/workbench-docker:${WORKBENCH_TAG}"
+
+          if [[ "$RENV_NEEDED" != "true" ]]; then
+            echo "dependency-image-ref=$base_image" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          exact_image="ghcr.io/${IMAGE_OWNER}/${IMAGE_NAME}-deps:${WB_VERSION}_renv-${RENV_HASH}"
+          latest_image="ghcr.io/${IMAGE_OWNER}/${IMAGE_NAME}-deps:latest"
+
+          if docker manifest inspect "$exact_image" >/dev/null 2>&1; then
+            echo "dependency-image-ref=$exact_image" >> "$GITHUB_OUTPUT"
+          elif docker manifest inspect "$latest_image" >/dev/null 2>&1; then
+            echo "dependency-image-ref=$latest_image" >> "$GITHUB_OUTPUT"
+          else
+            echo "dependency-image-ref=$base_image" >> "$GITHUB_OUTPUT"
+          fi
+
   full-build:
     name: "Build Full Site"
     runs-on: ubuntu-latest
@@ -86,9 +119,8 @@ jobs:
       checks: write
       contents: write
       pages: write
-      id-token: write
     container:
-      image: ghcr.io/carpentries/workbench-docker:${{ vars.WORKBENCH_TAG || 'latest' }}
+      image: ${{ needs.preflight.outputs.dependency-image-ref }}
       env:
         WORKBENCH_PROFILE: "ci"
         GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
@@ -116,23 +148,12 @@ jobs:
           git config --global --add safe.directory $(pwd)
         shell: bash
 
-      - name: "Setup Lesson Dependencies"
-        id: build-container-deps
-        uses: carpentries/actions/build-container-deps@main
-        with:
-          CACHE_VERSION: ${{ vars.CACHE_VERSION || github.event.inputs.CACHE_VERSION || '' }}
-          WORKBENCH_TAG: ${{ vars.WORKBENCH_TAG || 'latest' }}
-          LESSON_PATH: ${{ vars.LESSON_PATH || '/home/rstudio/lesson' }}
-          role-to-assume: ${{ secrets.AWS_GH_OIDC_ARN }}
-          aws-region: ${{ secrets.AWS_GH_OIDC_REGION }}
-          token: ${{ secrets.GITHUB_TOKEN }}
-
       - name: "Run Container and Build Site"
         id: build-and-deploy
         uses: carpentries/actions/build-and-deploy@main
         with:
           reset: ${{ vars.BUILD_RESET || github.event.inputs.reset || 'false' }}
-          skip-manage-deps: ${{ github.event.inputs.force-skip-manage-deps == 'true' || steps.build-container-deps.outputs.renv-cache-available || steps.build-container-deps.outputs.backup-cache-used || 'false' }}
+          skip-manage-deps: ${{ github.event.inputs.force-skip-manage-deps == 'true' || contains(needs.preflight.outputs.dependency-image-ref, '-deps:') }}
           lang-code: ${{ vars.LANG_CODE || '' }}
 
   update-container-version:
