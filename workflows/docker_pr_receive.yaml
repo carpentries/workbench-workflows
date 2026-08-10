@@ -107,7 +107,7 @@ jobs:
     outputs:
       renv-needed: ${{ steps.renv-check.outputs.renv-needed }}
       renv-cache-hashsum: ${{ steps.renv-check.outputs.renv-cache-hashsum }}
-      dependency-image-ref: ${{ steps.resolve-image.outputs.dependency-image-ref }}
+      dependency-image-ref: ${{ steps.renv-check.outputs.dependency-image-ref }}
     steps:
       - name: "Checkout Lesson"
         uses: actions/checkout@v6
@@ -118,46 +118,6 @@ jobs:
         with:
           CACHE_VERSION: ${{ inputs.CACHE_VERSION || '' }}
           skip-cache-check: true
-
-      - name: "Get Container Version Used"
-        id: wb-vers
-        if: steps.renv-check.outputs.renv-needed == 'true'
-        uses: carpentries/actions/container-version@main
-        with:
-          WORKBENCH_TAG: ${{ vars.WORKBENCH_TAG }}
-          renv-needed: ${{ steps.renv-check.outputs.renv-needed }}
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: "Resolve dependency image"
-        id: resolve-image
-        shell: bash
-        env:
-          RENV_NEEDED: ${{ steps.renv-check.outputs.renv-needed }}
-          WORKBENCH_TAG: ${{ vars.WORKBENCH_TAG || 'latest' }}
-          IMAGE_OWNER: ${{ github.repository_owner }}
-          IMAGE_NAME: ${{ github.event.repository.name }}
-          WB_VERSION: ${{ steps.wb-vers.outputs.container-version }}
-          RENV_HASH: ${{ steps.renv-check.outputs.renv-cache-hashsum }}
-        run: |
-          set -euo pipefail
-
-          base_image="ghcr.io/carpentries/workbench-docker:${WORKBENCH_TAG}"
-
-          if [[ "$RENV_NEEDED" != "true" ]]; then
-            echo "dependency-image-ref=$base_image" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          exact_image="ghcr.io/${IMAGE_OWNER}/${IMAGE_NAME}-deps:${WB_VERSION}_renv-${RENV_HASH}"
-          latest_image="ghcr.io/${IMAGE_OWNER}/${IMAGE_NAME}-deps:latest"
-
-          if docker manifest inspect "$exact_image" >/dev/null 2>&1; then
-            echo "dependency-image-ref=$exact_image" >> "$GITHUB_OUTPUT"
-          elif docker manifest inspect "$latest_image" >/dev/null 2>&1; then
-            echo "dependency-image-ref=$latest_image" >> "$GITHUB_OUTPUT"
-          else
-            echo "dependency-image-ref=$base_image" >> "$GITHUB_OUTPUT"
-          fi
 
   build-md-source:
     name: "Build markdown source files if valid"
@@ -187,7 +147,6 @@ jobs:
         - ${{ github.workspace }}:/home/rstudio/lesson
       options: --cpus 2
     outputs:
-      workbench-update: ${{ steps.wb-vers.outputs.workbench-update }}
       build-site: ${{ steps.build-site.outcome }}
     steps:
       - uses: actions/checkout@v6

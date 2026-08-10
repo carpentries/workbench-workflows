@@ -110,7 +110,7 @@ jobs:
         run: |
           set -euo pipefail
           cat > "${RUNNER_TEMP}/Dockerfile.deps" <<'EOF'
-          ARG WORKBENCH_TAG=latest
+          ARG WORKBENCH_TAG=${{ vars.WORKBENCH_TAG || 'latest' }}
           FROM ghcr.io/carpentries/workbench-docker:${WORKBENCH_TAG} AS builder
           ARG GITHUB_TOKEN
           ENV WORKBENCH_PROFILE=ci \
