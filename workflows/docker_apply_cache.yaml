@@ -50,7 +50,7 @@ jobs:
     steps:
       - name: "Check for renv"
         id: check-for-renv
-        uses: carpentries/actions/renv-checks@main
+        uses: carpentries/actions/renv-checks@frog-ghcr-dep-layer-1
         with:
           WORKBENCH_TAG: ${{ vars.WORKBENCH_TAG || 'latest' }}
           skip-cache-check: true
