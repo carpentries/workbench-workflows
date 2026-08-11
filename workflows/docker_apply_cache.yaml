@@ -154,6 +154,7 @@ jobs:
         uses: carpentries/actions/prune-dependency-images@frog-ghcr-dep-layer-1
         if: needs.check-renv.outputs.renv-needed == 'true'
         with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           owner: ${{ github.repository_owner }}
           owner-type: ${{ github.event.repository.owner.type }}
           package-name: ${{ github.event.repository.name }}-deps
