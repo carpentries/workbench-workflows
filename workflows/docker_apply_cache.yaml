@@ -85,7 +85,7 @@ jobs:
 
       - name: "Get Container Version Used"
         id: wb-vers
-        uses: carpentries/actions/container-version@main
+        uses: carpentries/actions/container-version@v1
         with:
           WORKBENCH_TAG: ${{ vars.WORKBENCH_TAG }}
           renv-needed: ${{ needs.check-renv.outputs.renv-needed }}
