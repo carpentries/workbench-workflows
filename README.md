@@ -51,8 +51,9 @@ This workflow does the following:
     - lesson dependencies if needed via a dependency Docker image layer
  3. builds the lesson via `sandpaper:::ci_deploy()`
 
-If your lesson contains rendered content using RMarkdown and/or any associated R package dependencies, you will need to generate and apply the renv cache.
-Please read the [Caching](#caching) section.
+If your lesson does not include RMarkdown materials or use any R packages, then this workflow is the only one that you need concern yourself with!
+
+If your lesson contains rendered content using RMarkdown and/or any associated R package dependencies, you will need to generate and apply the renv cache, so please read the following sections.
 
 ### 02 Maintain: Check for Updated Packages (update-cache.yaml)
 
