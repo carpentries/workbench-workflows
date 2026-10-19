@@ -25,8 +25,9 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      pull-requests: write
       id-token: write
+      packages: read
+      pull-requests: write
     steps:
       - name: "Checkout Repository"
         uses: actions/checkout@v6
@@ -93,14 +94,6 @@ jobs:
           clean: ${{ github.event.inputs.clean || '.yaml' }}
           token: ${{ steps.set-pat.outputs.pat || secrets.SANDPAPER_WORKFLOW }}
 
-      - name: Update devcontainer
-        id: update-devcontainer
-        if: ${{ steps.validate-token.outputs.wf == 'true' }}
-        uses: carpentries/actions/update-devcontainer@v1
-        with:
-          token: ${{ steps.set-pat.outputs.pat || secrets.SANDPAPER_WORKFLOW }}
-          repo: ${{ github.repository }}
-
       - name: Create Pull Request
         id: cpr
         if: |
@@ -123,6 +116,14 @@ jobs:
             [1]: https://github.com/carpentries/create-pull-request/tree/main
           labels: "type: workflows"
           draft: false
+
+      - name: Update devcontainer
+        id: update-devcontainer
+        if: ${{ steps.validate-token.outputs.wf == 'true' }}
+        uses: carpentries/actions/update-devcontainer@v1
+        with:
+          token: ${{ steps.set-pat.outputs.pat || secrets.SANDPAPER_WORKFLOW }}
+          repo: ${{ github.repository }}
 
       - name: Create Devcontainer Pull Request
         id: cdpr
