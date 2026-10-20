@@ -129,7 +129,7 @@ jobs:
         with:
           token: ${{ steps.set-pat.outputs.pat || secrets.SANDPAPER_WORKFLOW }}
           repo: ${{ github.repository }}
-          clean: ${{ github.event.inputs.clean-devc }}
+          clean: ${{ github.event.inputs.clean-devc || 'true' }}
 
       - name: Create Devcontainer Pull Request
         id: cdpr
