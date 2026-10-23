@@ -8,6 +8,7 @@ on:
     paths-ignore:
       - '.github/workflows/**.yaml'
       - '.github/workbench-docker-version.txt'
+      - '.devcontainer'
   schedule:
     - cron: '0 0 * * 2'
   workflow_run:
