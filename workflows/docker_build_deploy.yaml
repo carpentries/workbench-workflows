@@ -36,9 +36,13 @@ on:
         type: boolean
 
 # only one build/deploy at a time
+# A workflow_run build (started when "03 Maintain: Apply Package Cache"
+# completes) queues behind an in-progress build instead of cancelling it, so
+# the push build of the same merge is not cancelled and shown as failed.
+# cf. https://github.com/carpentries/workbench-workflows/issues/19
 concurrency:
   group: docker-build-deploy
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name != 'workflow_run' }}
 
 jobs:
   preflight:
