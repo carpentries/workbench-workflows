@@ -38,7 +38,7 @@ on:
 
 # only one build/deploy at a time
 concurrency:
-  group: docker-build-deploy
+  group: docker-build-deploy-${{ github.event_name }}
   cancel-in-progress: true
 
 jobs:
