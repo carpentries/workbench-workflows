@@ -60,6 +60,8 @@ jobs:
       - name: "Should we run build and deploy?"
         id: build-check
         uses: carpentries/actions/build-preflight@v1
+        with:
+          WORKBENCH_TAG: ${{ vars.WORKBENCH_TAG }}
 
       - name: "Checkout Lesson"
         if: steps.build-check.outputs.do-build == 'true'
